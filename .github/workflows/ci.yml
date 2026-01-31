@@ -1,0 +1,47 @@
+name: ci
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  build-go:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [linux, windows, darwin]
+        arch: [amd64, arm64]
+        exclude:
+          - os: windows
+            arch: arm64
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+          cache: true
+
+      - name: Build binary
+        env:
+          GOOS: ${{ matrix.os }}
+          GOARCH: ${{ matrix.arch }}
+          CGO_ENABLED: 0
+        run: |
+          mkdir -p dist
+          output="dist/unagent-lint-${GOOS}-${GOARCH}"
+          if [ "${GOOS}" = "windows" ]; then
+            output="${output}.exe"
+          fi
+          go build -o "${output}" ./
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: unagent-lint-${{ matrix.os }}-${{ matrix.arch }}
+          path: dist/
+          if-no-files-found: error
